@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KYRO OP · UPI QR</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #050510;
+    --surface:  #080818;
+    --panel:    #0c0c20;
+    --cyan:     #00f5ff;
+    --green:    #39ff14;
+    --pink:     #ff0090;
+    --yellow:   #ffe600;
+    --text:     #c8f0ff;
+    --muted:    #3a6080;
+    --border:   #0d2a3a;
+    --mono:     'Share Tech Mono', monospace;
+    --head:     'Orbitron', sans-serif;
+  }
+
+  html, body {
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,245,255,0.015) 2px,
+      rgba(0,245,255,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  /* Moving grid bg */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: -50%;
+    background-image:
+      linear-gradient(rgba(0,245,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,0.06) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: gridScroll 20s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  @keyframes gridScroll {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(50px); }
+  }
+
+  .card {
+    position: relative;
+    z-index: 1;
+    width: min(460px, 94vw);
+    background: var(--surface);
+    border: 1px solid var(--cyan);
+    border-radius: 4px;
+    padding: 0;
+    box-shadow:
+      0 0 0 1px rgba(0,245,255,0.1),
+      0 0 30px rgba(0,245,255,0.15),
+      0 0 80px rgba(0,245,255,0.07),
+      inset 0 0 40px rgba(0,245,255,0.03);
+    overflow: hidden;
+  }
+
+  /* Corner decorations */
+  .card::before, .card::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: var(--cyan);
+    border-style: solid;
+    z-index: 2;
+  }
+  .card::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+  .card::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+  /* Header bar */
+  .hdr {
+    background: linear-gradient(90deg, rgba(0,245,255,0.08), transparent);
+    border-bottom: 1px solid rgba(0,245,255,0.2);
+    padding: 18px 24px 14px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .hdr-left {}
+
+  .game-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .2em;
+    color: var(--cyan);
+    opacity: .7;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  h1 {
+    font-family: var(--head);
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    line-height: 1;
+    color: #fff;
+    text-shadow: 0 0 20px var(--cyan), 0 0 40px rgba(0,245,255,0.4);
+  }
+  h1 .op {
+    color: var(--cyan);
+  }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 5px;
+  }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 1.4s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .status-txt {
+    font-size: 9px;
+    letter-spacing: .1em;
+    color: var(--green);
+    text-transform: uppercase;
+  }
+
+  .hdr-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+  }
+  .hdr-badge .lv {
+    font-family: var(--head);
+    font-size: 9px;
+    letter-spacing: .12em;
+    color: var(--yellow);
+    text-shadow: 0 0 8px var(--yellow);
+  }
+  .hdr-badge .upi-tag {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: .05em;
+  }
+
+  /* Body */
+  .body {
+    padding: 22px 24px 26px;
+  }
+
+  /* HP-style label */
+  .field-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 9px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 8px;
+  }
+  .field-label::before {
+    content: '▶';
+    font-size: 7px;
+    color: var(--pink);
+  }
+
+  /* Amount input */
+  .amount-row { margin-bottom: 6px; }
+
+  .rupee-wrap {
+    position: relative;
+  }
+  .rupee-wrap::before {
+    content: '₹';
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--head);
+    font-size: 16px;
+    color: var(--cyan);
+    pointer-events: none;
+    text-shadow: 0 0 10px var(--cyan);
+  }
+
+  input[type="number"] {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid rgba(0,245,255,0.25);
+    border-radius: 2px;
+    color: var(--cyan);
+    font-family: var(--head);
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    padding: 12px 14px 12px 38px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    -moz-appearance: textfield;
+    text-shadow: 0 0 12px rgba(0,245,255,0.6);
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input[type="number"]:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 2px rgba(0,245,255,0.15), inset 0 0 20px rgba(0,245,255,0.04);
+  }
+
+  /* Presets */
+  .presets-label { margin-top: 18px; }
+  .presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+    margin-top: 8px;
+  }
+  .preset-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    background: var(--panel);
+    border: 1px solid var(--muted);
+    color: var(--muted);
+    border-radius: 2px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all .12s;
+    position: relative;
+    overflow: hidden;
+  }
+  .preset-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 40%, rgba(0,245,255,0.06));
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .preset-btn:hover::before, .preset-btn.active::before { opacity: 1; }
+  .preset-btn:hover, .preset-btn.active {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 10px rgba(0,245,255,0.2);
+    text-shadow: 0 0 8px var(--cyan);
+  }
+
+  /* Generate btn */
+  .gen-btn {
+    width: 100%;
+    background: transparent;
+    border: 2px solid var(--cyan);
+    border-radius: 2px;
+    color: var(--cyan);
+    font-family: var(--head);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    padding: 15px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: color .2s, box-shadow .2s;
+    box-shadow: 0 0 20px rgba(0,245,255,0.15), inset 0 0 20px rgba(0,245,255,0.04);
+    text-shadow: 0 0 10px var(--cyan);
+  }
+  .gen-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--cyan);
+    transform: translateX(-102%);
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    z-index: 0;
+  }
+  .gen-btn:hover::before { transform: translateX(0); }
+  .gen-btn:hover { color: #000; box-shadow: 0 0 40px rgba(0,245,255,0.5); text-shadow: none; }
+  .gen-btn span { position: relative; z-index: 1; }
+  .gen-btn:active { transform: scale(.98); }
+
+  /* Divider */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 22px 0;
+    font-size: 9px;
+    letter-spacing: .15em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--muted), transparent);
+  }
+
+  /* QR output */
+  .qr-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity .4s ease, transform .4s ease;
+    pointer-events: none;
+    height: 0;
+    overflow: hidden;
+  }
+  .qr-area.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    height: auto;
+    overflow: visible;
+  }
+
+  /* QR frame with corner accents */
+  .qr-frame-wrap {
+    position: relative;
+    display: inline-block;
+  }
+  .qr-frame-wrap::before,
+  .qr-frame-wrap::after,
+  .qr-frame-wrap .corner-br,
+  .qr-frame-wrap .corner-bl {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    border-color: var(--cyan);
+    border-style: solid;
+    z-index: 2;
+  }
+  .qr-frame-wrap::before { top: -4px; left: -4px; border-width: 3px 0 0 3px; }
+  .qr-frame-wrap::after  { top: -4px; right: -4px; border-width: 3px 3px 0 0; }
+  .qr-frame-wrap .corner-br { bottom: -4px; right: -4px; border-width: 0 3px 3px 0; }
+  .qr-frame-wrap .corner-bl { bottom: -4px; left: -4px; border-width: 0 0 3px 3px; }
+
+  .qr-frame {
+    padding: 14px;
+    background: #fff;
+    line-height: 0;
+    border-radius: 2px;
+    box-shadow: 0 0 30px rgba(0,245,255,0.3), 0 0 60px rgba(0,245,255,0.1);
+    animation: qrPulse 3s ease-in-out infinite;
+  }
+  @keyframes qrPulse {
+    0%,100% { box-shadow: 0 0 30px rgba(0,245,255,0.3), 0 0 60px rgba(0,245,255,0.1); }
+    50%      { box-shadow: 0 0 40px rgba(0,245,255,0.5), 0 0 80px rgba(0,245,255,0.2); }
+  }
+  .qr-frame canvas, .qr-frame img { display: block; }
+
+  /* Meta */
+  .qr-meta { text-align: center; }
+  .qr-meta .name {
+    font-family: var(--head);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: .1em;
+    color: #fff;
+    text-shadow: 0 0 12px rgba(255,255,255,0.3);
+    text-transform: uppercase;
+  }
+  .qr-meta .upi-id {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 3px;
+    letter-spacing: .06em;
+  }
+  .qr-meta .amount-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    border: 1px solid var(--green);
+    border-radius: 2px;
+    font-family: var(--head);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--green);
+    padding: 6px 20px;
+    text-shadow: 0 0 14px var(--green);
+    box-shadow: 0 0 16px rgba(57,255,20,0.2), inset 0 0 16px rgba(57,255,20,0.05);
+    letter-spacing: .08em;
+  }
+  .amount-badge::before { content: '₹'; opacity: .7; }
+
+  /* Download */
+  .dl-btn {
+    background: transparent;
+    border: 1px solid var(--muted);
+    border-radius: 2px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    padding: 9px 20px;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex; align-items: center; gap: 8px;
+    text-transform: uppercase;
+  }
+  .dl-btn:hover { border-color: var(--pink); color: var(--pink); box-shadow: 0 0 12px rgba(255,0,144,0.2); }
+  .dl-btn svg { width:13px; height:13px; }
+
+  /* Footer bar */
+  .footer-bar {
+    border-top: 1px solid rgba(0,245,255,0.1);
+    padding: 10px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-bar span {
+    font-size: 8px;
+    letter-spacing: .15em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .footer-bar .ping {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 8px;
+    color: var(--green);
+    letter-spacing: .1em;
+    text-shadow: 0 0 6px var(--green);
+  }
+  .ping-dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+
+  /* Glitch animation on title hover */
+  h1:hover {
+    animation: glitch .3s steps(2) forwards;
+  }
+  @keyframes glitch {
+    0%   { text-shadow: 2px 0 var(--pink), -2px 0 var(--cyan), 0 0 20px var(--cyan); }
+    33%  { text-shadow: -2px 0 var(--pink), 2px 0 var(--cyan), 0 0 20px var(--cyan); clip-path: inset(30% 0 50% 0); }
+    66%  { text-shadow: 2px 2px var(--yellow), -2px -2px var(--cyan), 0 0 20px var(--cyan); }
+    100% { text-shadow: 0 0 20px var(--cyan), 0 0 40px rgba(0,245,255,0.4); }
+  }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="game-tag">// UPI Payment System v2.0</div>
+      <h1>KYRO&nbsp;<span class="op">OP</span></h1>
+      <div class="status-row">
+        <div class="status-dot"></div>
+        <span class="status-txt">System Online</span>
+      </div>
+    </div>
+    <div class="hdr-badge">
+      <span class="lv">[ PLAYER 1 ]</span>
+      <span class="upi-tag">thekyroop@slc</span>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+
+    <div class="field-label amount-lbl">Enter Amount</div>
+    <div class="amount-row">
+      <div class="rupee-wrap">
+        <input type="number" id="amount" value="10" min="1" step="1" placeholder="0">
+      </div>
+    </div>
+
+    <div class="field-label presets-label">Quick Select</div>
+    <div class="presets">
+      <button class="preset-btn" onclick="setAmount(10,this)">₹10</button>
+      <button class="preset-btn" onclick="setAmount(20,this)">₹20</button>
+      <button class="preset-btn" onclick="setAmount(50,this)">₹50</button>
+      <button class="preset-btn" onclick="setAmount(100,this)">₹100</button>
+      <button class="preset-btn" onclick="setAmount(200,this)">₹200</button>
+      <button class="preset-btn" onclick="setAmount(500,this)">₹500</button>
+    </div>
+
+    <button class="gen-btn" onclick="generateQR()">
+      <span>⚡ Generate QR Code</span>
+    </button>
+
+    <div class="divider" id="divider" style="display:none">— Scan to Pay —</div>
+
+    <div class="qr-area" id="qrArea">
+      <div class="qr-frame-wrap">
+        <div class="corner-br"></div>
+        <div class="corner-bl"></div>
+        <div class="qr-frame" id="qrContainer"></div>
+      </div>
+      <div class="qr-meta">
+        <div class="name">Gourab Talukder</div>
+        <div class="upi-id">thekyroop@slc</div>
+        <div class="amount-badge" id="amountBadge"></div>
+      </div>
+      <button class="dl-btn" onclick="downloadQR()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Save QR Image
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer-bar">
+    <span>KYRO OP · UPI QR GEN</span>
+    <div class="ping"><div class="ping-dot"></div> LIVE</div>
+  </div>
+
+</div>
+
+<script>
+  let currentQR = null;
+
+  function setAmount(val, btn) {
+    document.getElementById('amount').value = val;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function generateQR() {
+    const amount = parseFloat(document.getElementById('amount').value);
+    if (!amount || amount <= 0) {
+      document.getElementById('amount').focus();
+      return;
+    }
+
+    const upiURL = `upi://pay?pa=thekyroop@slc&pn=GOURAB%20TALUKDER&am=${amount}&cu=INR`;
+
+    const container = document.getElementById('qrContainer');
+    container.innerHTML = '';
+
+    if (currentQR) { currentQR.clear(); currentQR = null; }
+
+    currentQR = new QRCode(container, {
+      text: upiURL,
+      width: 240,
+      height: 240,
+      colorDark: '#050510',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
+    document.getElementById('amountBadge').textContent = amount.toLocaleString('en-IN');
+
+    document.getElementById('divider').style.display = 'flex';
+    document.getElementById('qrArea').classList.add('visible');
+  }
+
+  function downloadQR() {
+    const canvas = document.querySelector('#qrContainer canvas');
+    if (!canvas) return;
+    const amount = document.getElementById('amount').value;
+    const link = document.createElement('a');
+    link.download = `kyro-upi-qr-${amount}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  document.getElementById('amount').addEventListener('keydown', e => {
+    if (e.key === 'Enter') generateQR();
+  });
+  document.getElementById('amount').addEventListener('input', () => {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  });
+</script>
+</body>
+</html>

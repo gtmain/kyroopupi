@@ -483,7 +483,7 @@
   <div class="hdr">
     <div class="hdr-left">
       <div class="game-tag">// UPI Payment System v2.0</div>
-      <h1>KYRO&nbsp;<span class="op">OP</span></h1>
+      <h1>GOURAB&nbsp;<span class="op">TALUKDER</span></h1>
       <div class="status-row">
         <div class="status-dot"></div>
         <span class="status-txt">System Online</span>
@@ -491,7 +491,7 @@
     </div>
     <div class="hdr-badge">
       <span class="lv">[ PLAYER 1 ]</span>
-      <span class="upi-tag">thekyroop@slc</span>
+      <span class="upi-tag">g.talukder@axl</span>
     </div>
   </div>
 
@@ -511,8 +511,8 @@
       <button class="preset-btn" onclick="setAmount(20,this)">₹20</button>
       <button class="preset-btn" onclick="setAmount(50,this)">₹50</button>
       <button class="preset-btn" onclick="setAmount(100,this)">₹100</button>
-      <button class="preset-btn" onclick="setAmount(200,this)">₹200</button>
-      <button class="preset-btn" onclick="setAmount(500,this)">₹500</button>
+      <button class="preset-btn" onclick="setAmount(200,this)">₹500</button>
+      <button class="preset-btn" onclick="setAmount(500,this)">₹1000</button>
     </div>
 
     <button class="gen-btn" onclick="generateQR()">
@@ -529,7 +529,7 @@
       </div>
       <div class="qr-meta">
         <div class="name">Gourab Talukder</div>
-        <div class="upi-id">thekyroop@slc</div>
+        <div class="upi-id">g.talukder@axl</div>
         <div class="amount-badge" id="amountBadge"></div>
       </div>
       <button class="dl-btn" onclick="downloadQR()">
@@ -546,7 +546,7 @@
 
   <!-- Footer -->
   <div class="footer-bar">
-    <span>KYRO OP · UPI QR GEN</span>
+    <span>GOURAB · UPI QR GEN</span>
     <div class="ping"><div class="ping-dot"></div> LIVE</div>
   </div>
 
@@ -568,7 +568,7 @@
       return;
     }
 
-    const upiURL = `upi://pay?pa=thekyroop@slc&pn=GOURAB%20TALUKDER&am=${amount}&cu=INR`;
+    const upiURL = `upi://pay?pa=g.talukder@axl&pn=GOURAB%20TALUKDER&am=${amount}&cu=INR`;
 
     const container = document.getElementById('qrContainer');
     container.innerHTML = '';
@@ -595,7 +595,7 @@
     if (!canvas) return;
     const amount = document.getElementById('amount').value;
     const link = document.createElement('a');
-    link.download = `kyro-upi-qr-${amount}.png`;
+    link.download = `GOURAB-qr-${amount}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   }
